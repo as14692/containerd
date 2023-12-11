@@ -215,7 +215,7 @@ func (c *container) Image(ctx context.Context) (Image, error) {
 func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...NewTaskOpts) (_ Task, err error) {
 	i, err := ioCreate(c.id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ioCreate failed for %s: %w", c.id, err)
 	}
 	defer func() {
 		if err != nil && i != nil {
@@ -233,7 +233,7 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 	}
 	r, err := c.get(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get container record for %s: %w", c.id, err)
 	}
 	if r.SnapshotKey != "" {
 		if r.Snapshotter == "" {
@@ -243,15 +243,15 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 		// get the rootfs from the snapshotter and add it to the request
 		s, err := c.client.getSnapshotter(ctx, r.Snapshotter)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("getSnapshotter failed for %s: %w", r.Snapshotter, err)
 		}
 		mounts, err := s.Mounts(ctx, r.SnapshotKey)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Mounting failed for %s: %w", r.SnapshotKey, err)
 		}
 		spec, err := c.Spec(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get OCI spec for %s : %w",c.id,  err)
 		}
 		for _, m := range mounts {
 			if spec.Linux != nil && spec.Linux.MountLabel != "" {
@@ -302,7 +302,7 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 	}
 	response, err := c.client.TaskService().Create(ctx, request)
 	if err != nil {
-		return nil, errdefs.FromGRPC(err)
+		return nil, fmt.Errorf("failed to create task for %s: %w", c.id, errdefs.FromGRPC(err))
 	}
 	t.pid = response.Pid
 	return t, nil
